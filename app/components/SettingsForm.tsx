@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { api, errText, fmt, DAY_NAMES, type Settings } from "./api";
+import { useUi } from "./ui";
 
 function timeZones(current: string) {
   try {
@@ -13,6 +14,7 @@ function timeZones(current: string) {
 
 export function SettingsForm(props: { settings: Settings; upcoming: string[]; model: string; onSaved: () => void }) {
   const s = props.settings;
+  const { toast } = useUi();
   const [topics, setTopics] = useState(s.topics.join("\n"));
   const [voice, setVoice] = useState(s.voice);
   const [rules, setRules] = useState(s.rules);
@@ -22,7 +24,7 @@ export function SettingsForm(props: { settings: Settings; upcoming: string[]; mo
   const [auto, setAuto] = useState(s.auto_generate);
   const [target, setTarget] = useState(s.queue_target);
   const [maxTags, setMaxTags] = useState(s.max_hashtags);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const zones = useMemo(() => timeZones(s.timezone), [s.timezone]);
   const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -31,7 +33,7 @@ export function SettingsForm(props: { settings: Settings; upcoming: string[]; mo
 
   const save = async () => {
     setSaving(true);
-    setMsg(null);
+    setError(null);
     try {
       await api("/api/settings", "PUT", {
         topics: topics.split("\n"),
@@ -44,77 +46,112 @@ export function SettingsForm(props: { settings: Settings; upcoming: string[]; mo
         queue_target: target,
         max_hashtags: maxTags,
       });
-      setMsg({ ok: true, text: "Saved" });
+      toast("ok", "Settings saved.");
       props.onSaved();
     } catch (e) {
-      setMsg({ ok: false, text: errText(e) });
+      setError(errText(e));
     }
     setSaving(false);
   };
 
   return (
-    <>
-      <div className="card">
-        <h2>What Claude writes about</h2>
-        <label>Topics (one per line)</label>
-        <textarea value={topics} onChange={(e) => setTopics(e.target.value)} style={{ minHeight: 110 }} placeholder={"Lessons from pharmacy operations\nLearning to code as a career changer\nSport and discipline"} />
-        <label>Voice and background: who you are, what you can credibly say, how you sound</label>
-        <textarea value={voice} onChange={(e) => setVoice(e.target.value)} placeholder="e.g. Dispensary manager and pharmacist in South Africa, former athlete, teaching myself to code. Direct, dry humour, no corporate speak." />
-        <label>Your rules (always / never). These override the defaults.</label>
-        <textarea value={rules} onChange={(e) => setRules(e.target.value)} style={{ minHeight: 80 }} placeholder={"Never mention my employer by name.\nUse South African English spelling.\nNo emoji."} />
-        <label>Maximum hashtags per post</label>
-        <input type="number" min={0} max={10} value={maxTags} onChange={(e) => setMaxTags(Number(e.target.value))} style={{ width: 90 }} />
-        <div className="muted" style={{ marginTop: 8 }}>Model: {props.model} (set ANTHROPIC_MODEL to change)</div>
-      </div>
+    <div className="stack">
+      <section className="panel">
+        <h2 className="panel__title">What Claude writes about</h2>
+        <p className="panel__lede">The more specific you are here, the more the drafts sound like you.</p>
 
-      <div className="card">
-        <h2>When posts go out</h2>
-        <label>Time zone</label>
-        <select value={tz} onChange={(e) => setTz(e.target.value)}>
-          {zones.map((z) => (
-            <option key={z} value={z}>
-              {z}
-            </option>
-          ))}
-        </select>
-        {tz !== browserTz && (
-          <div className="muted" style={{ marginTop: 4 }}>
-            Your browser is in {browserTz}. <button className="link" onClick={() => setTz(browserTz)}>Use that</button>
+        <div className="field">
+          <label className="label" htmlFor="topics">Topics</label>
+          <textarea id="topics" className="textarea" value={topics} onChange={(e) => setTopics(e.target.value)} placeholder={"Lessons from pharmacy operations\nLearning to code as a career changer\nSport and discipline"} />
+          <p className="hint">One per line.</p>
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="voice">Voice and background</label>
+          <textarea id="voice" className="textarea" value={voice} onChange={(e) => setVoice(e.target.value)} placeholder="Who you are, what you can credibly speak about, how you sound. e.g. Dispensary manager and pharmacist in South Africa, former athlete, teaching myself to code. Direct, dry humour, no corporate speak." />
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="rules">Your rules</label>
+          <textarea id="rules" className="textarea" value={rules} onChange={(e) => setRules(e.target.value)} placeholder={"Never mention my employer by name.\nUse South African English spelling.\nNo emoji."} />
+          <p className="hint">Always and never instructions. These override Claude&apos;s defaults.</p>
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="maxtags">Maximum hashtags per post</label>
+          <input id="maxtags" className="input" style={{ maxWidth: 120 }} type="number" inputMode="numeric" min={0} max={10} value={maxTags} onChange={(e) => setMaxTags(Number(e.target.value))} />
+        </div>
+        <p className="hint" style={{ marginTop: 14 }}>Model: {props.model}. Set ANTHROPIC_MODEL to change it.</p>
+      </section>
+
+      <section className="panel">
+        <h2 className="panel__title">When posts go out</h2>
+
+        <div className="field">
+          <label className="label" htmlFor="tz">Time zone</label>
+          <select id="tz" className="select" value={tz} onChange={(e) => setTz(e.target.value)}>
+            {zones.map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+          {tz !== browserTz && (
+            <p className="hint">
+              This device is in {browserTz}.{" "}
+              <button className="btn btn--quiet btn--sm" style={{ minHeight: 0, padding: 0, color: "var(--accent)" }} onClick={() => setTz(browserTz)}>
+                Use that
+              </button>
+            </p>
+          )}
+        </div>
+        <div className="field">
+          <label className="label" htmlFor="times">Posting times</label>
+          <input id="times" className="input" type="text" inputMode="text" value={times} onChange={(e) => setTimes(e.target.value)} placeholder="08:00, 17:30" />
+          <p className="hint">24-hour clock, separated by commas.</p>
+        </div>
+        <div className="field">
+          <span className="label" id="days-label">Posting days</span>
+          <div className="days" role="group" aria-labelledby="days-label">
+            {DAY_NAMES.map((n, d) => (
+              <button key={d} className="chip" aria-pressed={days.includes(d)} onClick={() => toggleDay(d)}>
+                {n}
+              </button>
+            ))}
           </div>
-        )}
-        <label>Posting times (24h, comma separated, e.g. 08:00, 17:30)</label>
-        <input type="text" value={times} onChange={(e) => setTimes(e.target.value)} />
-        <label>Posting days</label>
-        <div className="days">
-          {DAY_NAMES.map((n, d) => (
-            <button key={d} className={`chip ${days.includes(d) ? "on" : ""}`} onClick={() => toggleDay(d)}>
-              {n}
-            </button>
-          ))}
         </div>
         {props.upcoming.length > 0 && (
-          <div className="muted" style={{ marginTop: 10 }}>
+          <p className="hint" style={{ marginTop: 16 }}>
             Next free slots: {props.upcoming.map((u) => fmt(u, s.timezone)).join(" · ")}
-          </div>
+          </p>
         )}
-      </div>
+      </section>
 
-      <div className="card">
-        <h2>Autopilot</h2>
-        <label className="inline">
-          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
-          Auto-generate drafts when the scheduled job runs (drafts still need your approval)
-        </label>
-        <label>Keep this many drafts + approved posts in the queue</label>
-        <input type="number" min={1} max={20} value={target} onChange={(e) => setTarget(Number(e.target.value))} style={{ width: 90 }} />
-      </div>
+      <section className="panel">
+        <h2 className="panel__title">Autopilot</h2>
+        <div className="setting-row" style={{ marginTop: 12 }}>
+          <div>
+            <div className="label" id="auto-label">Write drafts automatically</div>
+            <p className="hint">Each scheduled run tops up your queue. Drafts still need your approval.</p>
+          </div>
+          <button type="button" role="switch" className="switch" aria-checked={auto} aria-labelledby="auto-label" onClick={() => setAuto((a) => !a)} />
+        </div>
+        <div className="setting-row" style={{ marginTop: 18 }}>
+          <div>
+            <div className="label">Queue size</div>
+            <p className="hint">Drafts plus scheduled posts to keep ready.</p>
+          </div>
+          <div className="stepper" role="group" aria-label="Queue size">
+            <button type="button" className="stepper__btn" aria-label="Fewer" disabled={target <= 1} onClick={() => setTarget((t) => Math.max(1, t - 1))}>−</button>
+            <span className="stepper__val">{target}</span>
+            <button type="button" className="stepper__btn" aria-label="More" disabled={target >= 20} onClick={() => setTarget((t) => Math.min(20, t + 1))}>+</button>
+          </div>
+        </div>
+      </section>
 
-      <div className="row">
-        <button className="primary" onClick={save} disabled={saving}>
+      <div className="savebar">
+        <button className="btn btn--primary grow" onClick={save} disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </button>
-        {msg && <span className={msg.ok ? "muted" : "err"} style={{ marginTop: 0 }}>{msg.text}</span>}
       </div>
-    </>
+      {error && <p className="err" role="alert">{error}</p>}
+    </div>
   );
 }

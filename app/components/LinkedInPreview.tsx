@@ -35,28 +35,36 @@ export function LinkedInPreview(props: {
   const cut = foldIndex(props.text);
   const folded = !open && cut < props.text.length;
   return (
-    <div className="preview">
-      <div className="who" style={{ marginBottom: 8 }}>
-        {props.picture ? <img className="avatar" src={props.picture} alt="" onError={(e) => (e.currentTarget.style.visibility = "hidden")} /> : <div className="avatar" />}
+    <div className="li" aria-label="Preview of how the post looks on LinkedIn">
+      <div className="li__who">
+        {props.picture ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="avatar avatar--lg" src={props.picture} alt="" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+        ) : (
+          <span className="avatar avatar--lg" />
+        )}
         <div>
-          <strong>{props.name || "You"}</strong>
-          <div className="muted">Now · 🌐</div>
+          <div className="li__name">{props.name || "You"}</div>
+          <div className="muted">Now</div>
         </div>
       </div>
-      <div className="text">
+      <div className="li__text">
         {withHashtags(folded ? props.text.slice(0, cut).trimEnd() : props.text)}
         {folded && (
-          <span className="more" onClick={() => setOpen(true)}>
+          <button className="li__more" onClick={() => setOpen(true)}>
             {" "}…see more
-          </span>
+          </button>
         )}
       </div>
-      {props.imageUrl && <img className="post-image" src={props.imageUrl} alt={props.imageAlt ?? ""} />}
-      <div className="muted" style={{ marginTop: 8 }}>
+      {props.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="li__img" src={props.imageUrl} alt={props.imageAlt ?? ""} />
+      )}
+      <p className="hint" style={{ marginTop: 10 }}>
         {cut < props.text.length
-          ? `Hook (shown before "see more"): ${cut} of ${props.text.length} characters`
-          : "Whole post is visible without expanding"}
-      </div>
+          ? `Your hook is the part before "see more": ${cut} of ${props.text.length} characters.`
+          : "The whole post is visible without expanding."}
+      </p>
     </div>
   );
 }

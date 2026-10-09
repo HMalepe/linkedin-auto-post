@@ -67,6 +67,17 @@ export function fmt(iso: string | null, tz: string) {
   });
 }
 
+// "in 35 min", "in 9 h", "in 3 days", or "due now" once the time has passed.
+export function until(iso: string, now = Date.now()) {
+  const m = Math.round((new Date(iso).getTime() - now) / 60_000);
+  if (m <= 0) return "due now";
+  if (m < 60) return `in ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `in ${h} h`;
+  const d = Math.round(m / 1440);
+  return `in ${d} day${d === 1 ? "" : "s"}`;
+}
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export function toZonedInput(iso: string | null, tz: string) {
